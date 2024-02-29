@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Alex-Joe-Lee/sing-quic"
 	"github.com/sagernet/quic-go"
-	"github.com/sagernet/sing-quic"
 	"github.com/sagernet/sing/common"
 	"github.com/sagernet/sing/common/auth"
 	"github.com/sagernet/sing/common/baderror"

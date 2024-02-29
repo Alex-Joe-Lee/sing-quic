@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Alex-Joe-Lee/sing-quic"
+	qtls "github.com/Alex-Joe-Lee/sing-quic"
 	hyCC "github.com/Alex-Joe-Lee/sing-quic/hysteria/congestion"
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/sing/common"
@@ -127,7 +127,7 @@ func (s *Service[U]) UpdateUsers(userList []U, passwordList []string) {
 
 func (s *Service[U]) Start(conn net.PacketConn) error {
 	if s.xplusPassword != "" {
-		conn = NewXPlusPacketConn(conn, []byte(s.xplusPassword))
+		conn = NewXPlusPacketConn(conn, []byte(s.xplusPassword), false)
 	}
 	listener, err := qtls.Listen(conn, s.tlsConfig, s.quicConfig)
 	if err != nil {

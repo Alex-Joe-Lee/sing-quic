@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Alex-Joe-Lee/sing-quic"
+	qtls "github.com/Alex-Joe-Lee/sing-quic"
 	congestion_meta1 "github.com/Alex-Joe-Lee/sing-quic/congestion_meta1"
 	congestion_meta2 "github.com/Alex-Joe-Lee/sing-quic/congestion_meta2"
 	"github.com/Alex-Joe-Lee/sing-quic/hysteria"
@@ -115,7 +115,7 @@ func (s *Service[U]) UpdateUsers(userList []U, passwordList []string) {
 
 func (s *Service[U]) Start(conn net.PacketConn) error {
 	if s.salamanderPassword != "" {
-		conn = NewSalamanderConn(conn, []byte(s.salamanderPassword))
+		conn = NewSalamanderConn(conn, []byte(s.salamanderPassword), false)
 	}
 	err := qtls.ConfigureHTTP3(s.tlsConfig)
 	if err != nil {

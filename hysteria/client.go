@@ -2,15 +2,18 @@ package hysteria
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"math"
 	"net"
 	"os"
 	"runtime"
 	"sync"
+	"time"
 
-	"github.com/Alex-Joe-Lee/sing-quic"
+	qtls "github.com/Alex-Joe-Lee/sing-quic"
 	hyCC "github.com/Alex-Joe-Lee/sing-quic/hysteria/congestion"
+	hop "github.com/Alex-Joe-Lee/sing-quic/udphop"
 	"github.com/sagernet/quic-go"
 	"github.com/sagernet/sing/common/baderror"
 	"github.com/sagernet/sing/common/bufio"
@@ -34,6 +37,8 @@ type ClientOptions struct {
 	Password      string
 	TLSConfig     aTLS.Config
 	UDPDisabled   bool
+	HopPorts      string
+	HopInterval   int
 
 	// Legacy options
 
@@ -55,6 +60,8 @@ type Client struct {
 	tlsConfig     aTLS.Config
 	quicConfig    *quic.Config
 	udpDisabled   bool
+	hopPorts      string
+	hopInterval   time.Duration
 
 	connAccess sync.RWMutex
 	conn       *clientQUICConnection
@@ -95,6 +102,9 @@ func NewClient(options ClientOptions) (*Client, error) {
 	} else if options.ReceiveBPS < MinSpeedBPS {
 		return nil, E.New("invalid download speed")
 	}
+	if options.HopInterval < 5 {
+		options.HopInterval = 5
+	}
 	return &Client{
 		ctx:           options.Context,
 		dialer:        options.Dialer,
@@ -108,6 +118,8 @@ func NewClient(options ClientOptions) (*Client, error) {
 		tlsConfig:     options.TLSConfig,
 		quicConfig:    quicConfig,
 		udpDisabled:   options.UDPDisabled,
+		hopPorts:      options.HopPorts,
+		hopInterval:   time.Duration(options.HopInterval) * time.Second,
 	}, nil
 }
 
@@ -135,9 +147,19 @@ func (c *Client) offerNew(ctx context.Context) (*clientQUICConnection, error) {
 		return nil, err
 	}
 	var packetConn net.PacketConn
+	if c.hopPorts != "" {
+		packetConn, err = hop.NewUDPHopPacketConn(c.serverAddr.AddrString(), c.hopPorts, c.hopInterval, func() (net.PacketConn, error) {
+			return c.dialer.ListenPacket(c.ctx, c.serverAddr)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("hop.NewUDPHopPacketConn: %w", err)
+		}
+	} else {
+		packetConn = bufio.NewUnbindPacketConn(udpConn)
+	}
 	packetConn = bufio.NewUnbindPacketConn(udpConn)
 	if c.xplusPassword != "" {
-		packetConn = NewXPlusPacketConn(packetConn, []byte(c.xplusPassword))
+		packetConn = NewXPlusPacketConn(packetConn, []byte(c.xplusPassword), c.hopPorts != "")
 	}
 	quicConn, err := qtls.Dial(c.ctx, packetConn, udpConn.RemoteAddr(), c.tlsConfig, c.quicConfig)
 	if err != nil {
